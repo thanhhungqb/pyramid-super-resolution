@@ -45,7 +45,7 @@ def raf_db_filter_train_func(raf_meta, file_path, map_fname_funcs=lambda o: o):
     """
     name = (file_path.name if isinstance(file_path, Path) else file_path.split(os.path.sep)[-1])
     name = map_fname_funcs(name)
-    return raf_meta.loc[name, 'is_test'] == False
+    return raf_meta.loc[name, 'is_test'] is False
 
 
 def raf_db_valid_split_func(raf_meta, file_path, fold=1, map_fname_funcs=lambda o: o):
@@ -68,6 +68,30 @@ def raf_db_valid_split_func(raf_meta, file_path, fold=1, map_fname_funcs=lambda 
     name = map_fname_funcs(name)
     return raf_meta.loc[name, '5_fold'] == fold
 
+
 # -------------------------------------------------------------------------
 # END OF RAF-DB
+# -------------------------------------------------------------------------
+
+
+# -------------------------------------------------------------------------
+# Functions for emotiw dataset
+# -------------------------------------------------------------------------
+
+def emotiw_get_target_func(fname):
+    """
+    Maybe wrap outside to use with `label_from_func`
+
+    target_func = lambda o: emowlbl2id[emotiw_get_target_func(o)]
+
+    Get target (label) for fname, this is parent of parent of this file
+    label/movie.id/fname
+    :param fname: Path or str to frame file
+    :return: label by number, see emo_const to map to label
+    """
+    name = (fname.parts if isinstance(fname, Path) else fname.split(os.path.sep))[-3]
+    return name.lower()
+
+# -------------------------------------------------------------------------
+# Functions for emotiw dataset
 # -------------------------------------------------------------------------
