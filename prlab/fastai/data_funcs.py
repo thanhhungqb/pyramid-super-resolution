@@ -45,7 +45,7 @@ def raf_db_filter_train_func(raf_meta, file_path, map_fname_funcs=lambda o: o):
     """
     name = (file_path.name if isinstance(file_path, Path) else file_path.split(os.path.sep)[-1])
     name = map_fname_funcs(name)
-    return raf_meta.loc[name, 'is_test'] is False
+    return not raf_meta.loc[name, 'is_test']
 
 
 def raf_db_valid_split_func(raf_meta, file_path, fold=1, map_fname_funcs=lambda o: o):
