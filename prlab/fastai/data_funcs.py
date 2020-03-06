@@ -3,10 +3,37 @@
 import os
 from pathlib import Path
 
+import pandas as pd
+
 
 # --------------------------------------------------------------------------
 # For RAF-DB data
 # --------------------------------------------------------------------------
+class RafDBDataHelper:
+    """
+    Data Helper for rafDB
+    """
+
+    def __init__(self, **config):
+        self.raf_meta = pd.read_csv(config['path'] / 'raf-db-meta.csv', index_col=0)
+        self.f_map = fmap_name_aligned
+
+    def y_func(self, o):
+        return raf_db_get_target_func(self.raf_meta, o, self.f_map)
+
+    def filter_train_fn(self, o):
+        return raf_db_filter_train_func(self.raf_meta, o, map_fname_funcs=self.f_map)
+
+    def filter_train_test_fn(self, o):
+        return not self.filter_train_fn(o)
+
+    def split_valid_fn(self, o):
+        return raf_db_valid_split_func(self.raf_meta, o, fold=self.fold, map_fname_funcs=self.f_map)
+
+
+fmap_name = lambda o: o  # for normal train folder
+fmap_name_aligned = lambda o: '_'.join(o.split('_')[:2]) + ".jpg"  # for name in aligned
+
 
 def raf_db_get_target_func(raf_meta, file_path, map_fname_funcs=lambda o: o):
     """
