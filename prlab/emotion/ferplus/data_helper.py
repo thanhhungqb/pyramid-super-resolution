@@ -31,6 +31,10 @@ class FerplusDataHelper:
         self.ferplus_meta = ferplus_meta
         self.float_pro = float_pro
 
-    def get_y_func_ferplus(self, o):
+    def y_func(self, o):
         n = (o.name if isinstance(o, Path) else o.split(os.path.sep)[-1])
         return self.ferplus_meta.loc[n, :][-1]
+
+    def get_y_func_ferplus(self, o):
+        """alias for `y_func`"""
+        return self.y_func(o)
