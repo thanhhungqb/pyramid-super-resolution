@@ -4,10 +4,12 @@ import os
 from pathlib import Path
 
 import pandas as pd
-
 # default_emo_lst = ['ang', 'hap', 'neu', 'sad', 'exc']
 # four_class_emo_lst = ['ang', 'hap', 'neu', 'sad']
 # lbl2id = {'ang': 0, 'hap': 1, 'neu': 2, 'sad': 3}
+from fastai.data_block import FloatList
+
+from prlab.fastai.data_funcs import DefaultDataHelper
 from prlab.gutils import map_str_prob
 
 
@@ -17,9 +19,12 @@ from prlab.gutils import map_str_prob
 # def map_exc_hap_func(o): return o if o != 'exc' else 'hap'
 
 
-class FerplusDataHelper:
+class FerplusDataHelper(DefaultDataHelper):
+    label_cls = FloatList
+
     def __init__(self, csv_path, **kwargs):
         # self.df = df
+        super().__init__(**kwargs)
         ferplus_meta = pd.read_csv(csv_path, delimiter=',')
         float_pro = map_str_prob(ferplus_meta['pro'])
 
