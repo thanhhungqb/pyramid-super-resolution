@@ -4,17 +4,30 @@ import os
 from pathlib import Path
 
 import pandas as pd
-
-
 # --------------------------------------------------------------------------
 # For RAF-DB data
 # --------------------------------------------------------------------------
-class RafDBDataHelper:
+from fastai.data_block import CategoryList
+
+
+class DefaultDataHelper:
+    label_cls = CategoryList
+
+    def __init__(self, **kwargs):
+        pass
+
+    def y_func(self, o):
+        return 0
+
+
+class RafDBDataHelper(DefaultDataHelper):
     """
     Data Helper for rafDB
     """
+    label_cls = CategoryList
 
     def __init__(self, **config):
+        super().__init__(**config)
         self.raf_meta = pd.read_csv(config['path'] / 'raf-db-meta.csv', index_col=0)
         self.f_map = fmap_name_aligned
 
