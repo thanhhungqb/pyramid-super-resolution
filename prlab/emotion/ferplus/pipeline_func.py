@@ -6,14 +6,13 @@ from fastai.vision import *
 from prlab.emotion.emo_const import ferlabels
 
 
-def pre_processing(learn, **config):
+def pre_processing(**config):
     """
     implement some pre_processing for config before load data and train.
     support `Pipeline Process template`
     should be add before any data load step in the pipeline.
-    :param learn:
     :param config:
     :return:
     """
     config['label_names'] = np.array(ferlabels)
-    return learn, config
+    return config
