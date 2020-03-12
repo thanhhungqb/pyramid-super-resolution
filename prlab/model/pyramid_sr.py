@@ -69,29 +69,3 @@ class PyramidSR(nn.Module):
         x_stack = torch.stack(branches_out, dim=-1)
         out = torch.mean(x_stack, dim=-1)
         return out
-
-
-def pyramid_sr_pipe(**config):
-    """
-    Follow Pipeline Process template.
-    Make a leaner and set to config, update and return the new one.
-    Note: by new style, it is not need to use `prlab.fastai.pipeline.basic_model_build` to load this function,
-    directly add to pipeline instead. (and then not need `model_func` in configure too.
-    :param config:
-    :return: new config with update learn, model and layer_groups
-    """
-    model = PyramidSR(**config)
-    model.load_weights(**config)
-
-    learn = Learner(config['data_train'], model=model,
-                    layer_groups=model.layer_groups(),
-                    model_dir=config['cp'])
-    (config['cp'] / "model.txt").open('a').write(str(learn.model))
-
-    config.update({
-        'learn': learn,
-        'model': model,
-        'layer_groups': model.layer_groups(),
-    })
-
-    return config
