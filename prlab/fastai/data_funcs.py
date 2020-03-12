@@ -9,6 +9,8 @@ import pandas as pd
 # --------------------------------------------------------------------------
 from fastai.data_block import CategoryList
 
+from prlab.gutils import set_if
+
 
 class DefaultDataHelper:
     label_cls = CategoryList
@@ -28,19 +30,37 @@ class RafDBDataHelper(DefaultDataHelper):
 
     def __init__(self, **config):
         super().__init__(**config)
-        self.raf_meta = pd.read_csv(config['path'] / 'raf-db-meta.csv', index_col=0)
+        set_if(config, 'csv_path', config['path'] / 'raf-db-meta.csv')
+        set_if(config, 'fold', 1)
+
+        self.raf_meta = pd.read_csv(config['csv_path'], index_col=0)
+
         self.f_map = fmap_name_aligned
+        self.path = config['path'] / 'aligned'
+        self.fold = config['fold']
 
     def y_func(self, o):
         return raf_db_get_target_func(self.raf_meta, o, self.f_map)
 
     def filter_train_fn(self, o):
+        """
+        :param o:
+        :return: true if train/false for test
+        """
         return raf_db_filter_train_func(self.raf_meta, o, map_fname_funcs=self.f_map)
 
-    def filter_train_test_fn(self, o):
+    def filter_test_fn(self, o):
+        """
+        :param o:
+        :return: true if test/false if train/valid
+        """
         return not self.filter_train_fn(o)
 
     def split_valid_fn(self, o):
+        """
+        :param o:
+        :return: true if in valid/false if not (then in train)
+        """
         return raf_db_valid_split_func(self.raf_meta, o, fold=self.fold, map_fname_funcs=self.f_map)
 
 
