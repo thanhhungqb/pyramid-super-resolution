@@ -37,6 +37,11 @@ class RafDBDataHelper(DefaultDataHelper):
 
         self.f_map = fmap_name_aligned
         self.path = config['path'] / 'aligned'
+        if not config.get('is_aligned', True):
+            # use raw, default will use aligned above
+            self.f_map = fmap_name
+            self.path = config['path'] / 'train'
+
         self.fold = config['fold']
 
     def y_func(self, o):
@@ -45,7 +50,7 @@ class RafDBDataHelper(DefaultDataHelper):
     def filter_train_fn(self, o):
         """
         :param o:
-        :return: true if train/false for test
+        :return: true if train (and valid)/false for test
         """
         return raf_db_filter_train_func(self.raf_meta, o, map_fname_funcs=self.f_map)
 
