@@ -55,6 +55,7 @@ class PyramidSR(nn.Module):
         nlayer.weight.data.copy_(xtmp)
 
         self.config = config
+        self.is_testing = False
 
     def make_layer_pyramid(self, mul):
         """
@@ -132,8 +133,10 @@ class PyramidSR(nn.Module):
         x_stack = torch.stack(branches_out, dim=-1)  # [bs, n_classes, n_branches]
         weights = self.branch_weighted(x_stack.view([-1, self.n_classes * self.n_branches]))
 
-        # if not self.training:
-        #     return weights_branches((x_stack, weights))
+        if not self.training and self.is_testing:
+            # not valid, just test
+            return weights_branches((x_stack, weights))
+
         return x_stack, weights
 
 
@@ -155,14 +158,7 @@ def weights_branches(pred, **kwargs):
     sm = torch.stack(sm, dim=-1)
     # c_out = torch.bmm(sm, weights.unsqueeze(-1)).squeeze(dim=-1)
     c_out = torch.mean(sm, dim=-1)
-    # TODO test only
-    (Path('/ws/tmp/running.txt')).open('a').write(
-        'o:{}\nw:{}\nc_out:{}\n'.format(
-            out[0],
-            weights[0],
-            c_out[0]
-        )
-    )
+
     return c_out
 
 
@@ -198,14 +194,5 @@ def prob_weights_acc(pred, target, **kwargs):
     """
     f_acc, _ = load_func_by_name('prlab.fastai.utils.prob_acc')
     c_out = weights_branches(pred=pred)
-    (Path('/ws/tmp/running.txt')).open('a').write(
-        'c_out:{}\ntarget:{}\nacc_each: {} - {} => final_acc: {}\n'.format(
-            c_out[0],
-            target[0],
-            f_acc(pred[0][:, :, 0], target),
-            f_acc(pred[0][:, :, 1], target),
-            f_acc(c_out, target)
-        )
-    )
 
     return f_acc(c_out, target)  # f_acc(pred[0][:, :, 0], target)
