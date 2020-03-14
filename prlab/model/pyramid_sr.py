@@ -291,9 +291,10 @@ class PyramidSRVGGShare(nn.Module):
             print('load weights from ', base_weights_path)
 
         if self.config['base_arch'] in ['vgg16_bn']:
+            sep_pos = self.config.get('sep_pos', 3)  # 3 for first Conv2D layer, 6 for top 2 Conv2D layers
             out = [
-                nn.Sequential(*base_model[0][0][:3]),
-                nn.Sequential(*base_model[0][0][3:], base_model[0][1:]),
+                nn.Sequential(*base_model[0][0][:sep_pos]),
+                nn.Sequential(*base_model[0][0][sep_pos:], base_model[0][1:]),
                 nn.Sequential(*base_model[1:])
             ]
             return out
@@ -317,7 +318,7 @@ class PyramidSRVGGShare(nn.Module):
             # make new one here, similar input_spec but triple size input, copy weights
             layer = nn.Sequential(
                 SRNet3(mul),
-                make_basic_block(input_spec.state_dict(), strict=True)
+                make_basic_block(input_spec.state_dict(), strict=True, module_like=input_spec)
             )
             path_xn = self.config.get('weight_path_x{}'.format(mul), None)
             o = layer[0].load_state_dict(torch.load(path_xn), strict=True) \
@@ -327,7 +328,7 @@ class PyramidSRVGGShare(nn.Module):
 
         else:
             # just clone input_spec here
-            layer = make_basic_block(input_spec.state_dict(), strict=True)
+            layer = make_basic_block(input_spec.state_dict(), strict=True, module_like=input_spec)
         return layer
 
     def layer_groups(self):
@@ -357,11 +358,12 @@ class PyramidSRVGGShare(nn.Module):
         return x_stack, None
 
 
-def make_basic_block(state_dict=None, strict=True):
+def make_basic_block(state_dict=None, strict=True, module_like=None):
     """
     This block is widely used as the first block, in VGG16, ResNet101, e.g. (check)
     :param state_dict:
     :param strict:
+    :param module_like: if given then new block will like the module (TODO try to deepcopy)
     :return:
     """
     block = nn.Sequential(
@@ -369,6 +371,14 @@ def make_basic_block(state_dict=None, strict=True):
         nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
         nn.ReLU()
     )
+    if module_like and len(module_like) == 6:
+        # add more three submodule, the second layer
+        block = nn.Sequential(
+            *block,
+            nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(),
+        )
     if state_dict is not None:
         block.load_state_dict(state_dict=state_dict, strict=strict)
 
