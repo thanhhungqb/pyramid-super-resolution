@@ -245,6 +245,136 @@ class PyramidSRNonShare(nn.Module):
         return x_stack, None
 
 
+class PyramidSRVGGShare(nn.Module):
+    """
+    Like `prlab.model.pyramid_sr.PyramidSRNonShare` but all branches share the basic layers of VGG, just different
+    of first layer for different size of input and do not broken the weight.
+    It is for special VGG
+    """
+
+    def __init__(self, **config):
+        super().__init__()
+        self.multiples = config.get('multiples', [1, 2])
+        self.config = config
+        self.n_classes = config['n_classes']
+
+        # stn layer
+        self.stn = STN(img_size=config['img_size'])
+
+        # latest layer, classifier, main and shared layer
+        self.base_arch = base_arch_str_to_obj(config.get('base_arch', 'vgg16_bn'))
+
+        input_spec, body, head = self.separated_base_arch()
+        # this part is share, not need to clone, but input_spec should be clone if used
+        self.classifier = nn.Sequential(body, head)
+
+        # some parallel branches, in different size with SR
+        pyramid_group = []
+        for mul in self.multiples:
+            pyramid_group.append(self.make_layer_pyramid(mul, input_spec))
+
+        self.pyramid_group = nn.Sequential(*pyramid_group)
+
+        self.is_testing = False
+
+    def separated_base_arch(self):
+        """
+        load weights if have and separated the base arch to three part, [first some layers, remain of base, head (fc)]
+        note: if share then can reuse, but if some parts is not share then must make new and clone weights (first layers)
+        :return:
+        """
+        base_weights_path = self.config.get('base_weights_path', None)
+        base_model = create_cnn_model(base_arch=self.base_arch, nc=self.n_classes)
+        o = base_model.load_state_dict(torch.load(base_weights_path), strict=True) \
+            if base_weights_path is not None and Path(base_weights_path).is_file() else None
+        if o:
+            print('load weights from ', base_weights_path)
+
+        if self.config['base_arch'] in ['vgg16_bn']:
+            out = [
+                nn.Sequential(*base_model[0][0][:2]),
+                nn.Sequential(*base_model[0][0][2:], base_model[0][1:]),
+                nn.Sequential(*base_model[1:])
+            ]
+            return out
+        elif self.config['base_arch'] in ['resnet101']:
+            out = [
+                nn.Sequential(*base_model[0][:2]),
+                nn.Sequential(*base_model[0][2:]),
+                nn.Sequential(*base_model[1:])
+            ]
+            return out
+        else:
+            raise Exception('Does not support yet for {}'.format(self.config['base_arch']))
+
+    def make_layer_pyramid(self, mul, input_spec):
+        """
+        :param mul:
+        :param input_spec: first layers, must adapt to input size
+        :return:
+        """
+        if mul in [2, 3]:
+            # make new one here, similar input_spec but triple size input, copy weights
+            layer = nn.Sequential(
+                SRNet3(mul),
+                make_basic_block(input_spec.state_dict(), strict=True)
+            )
+            path_xn = self.config.get('weight_path_x{}'.format(mul), None)
+            o = layer[0].load_state_dict(torch.load(path_xn), strict=True) \
+                if path_xn is not None and Path(path_xn).is_file() else None
+            if o:
+                print('load weights from ', path_xn)
+
+        else:
+            # just clone input_spec here
+            layer = make_basic_block(input_spec.state_dict(), strict=True)
+        return layer
+
+    def layer_groups(self):
+        return [
+            self.stn,
+            self.classifier,
+            self.pyramid_group
+        ]
+
+    def load_weights(self, **config):
+        """ TODO not need yet, load when make model """
+
+    def forward(self, *x, **kwargs):
+        x = self.stn(x[0])
+
+        branches_out = []
+        for idx in range(len(self.pyramid_group)):
+            o1 = self.pyramid_group[idx](x)
+            x_out = self.classifier(o1)
+            branches_out.append(x_out)
+        x_stack = torch.stack(branches_out, dim=-1)  # [bs, n_classes, n_branches]
+
+        if not self.training and self.is_testing:
+            # not when valid, just when test
+            return weights_branches((x_stack, None))
+
+        return x_stack, None
+
+
+def make_basic_block(state_dict=None, strict=True):
+    """
+    This block is widely used as the first block, in VGG16, ResNet101, e.g. (check)
+    :param state_dict:
+    :param strict:
+    :return:
+    """
+    block = nn.Sequential(
+        nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+        nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+        nn.ReLU()
+    )
+    if state_dict is not None:
+        block.load_state_dict(state_dict=state_dict, strict=strict)
+
+    return block
+
+
 def weights_branches(pred, **kwargs):
     """
     Use together with `prlab.model.pyramid_sr.prob_weights_loss`
