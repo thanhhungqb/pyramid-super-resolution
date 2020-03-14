@@ -292,15 +292,15 @@ class PyramidSRVGGShare(nn.Module):
 
         if self.config['base_arch'] in ['vgg16_bn']:
             out = [
-                nn.Sequential(*base_model[0][0][:2]),
-                nn.Sequential(*base_model[0][0][2:], base_model[0][1:]),
+                nn.Sequential(*base_model[0][0][:3]),
+                nn.Sequential(*base_model[0][0][3:], base_model[0][1:]),
                 nn.Sequential(*base_model[1:])
             ]
             return out
         elif self.config['base_arch'] in ['resnet101']:
             out = [
-                nn.Sequential(*base_model[0][:2]),
-                nn.Sequential(*base_model[0][2:]),
+                nn.Sequential(*base_model[0][:3]),
+                nn.Sequential(*base_model[0][3:]),
                 nn.Sequential(*base_model[1:])
             ]
             return out
