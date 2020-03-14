@@ -143,6 +143,108 @@ class PyramidSR(nn.Module):
         return x_stack, weights
 
 
+class PyramidSRNonShare(nn.Module):
+    """
+    Cleaning version for `prlab.model.pyramid_sr.PyramidSR`, which clear unused layers
+    """
+
+    def __init__(self, **config):
+        super().__init__()
+        self.multiples = config.get('multiples', [1, 2])
+        self.config = config
+        self.n_classes = config['n_classes']
+
+        # stn layer
+        self.stn = STN(img_size=config['img_size'])
+
+        # latest layer, classifier, main and shared layer
+        self.base_arch = base_arch_str_to_obj(config.get('base_arch', 'vgg16_bn'))
+
+        # some parallel branches, in different size with SR
+        pyramid_group = []
+        for mul in self.multiples:
+            pyramid_group.append(self.make_layer_pyramid(mul))
+
+        self.pyramid_group = nn.Sequential(*pyramid_group)
+
+        self.is_testing = False
+
+    def make_layer_pyramid(self, mul):
+        """
+        :param mul:
+        :return:
+        """
+        # TODO remove hard_code
+        p_x2 = '/ws/models/super_resolution/facial_x2.pth'
+        p_x3 = '/ws/models/super_resolution/facial_x3.pth'
+        p_vgg = '/ws/models/ferplus/vgg16_bn_quick_3size_e20/final.w'
+        if mul == 3:
+            layer = nn.Sequential(
+                SRNet3(mul),
+                create_cnn_model(base_arch=self.base_arch, nc=self.n_classes)
+            )
+            layer[0].load_state_dict(torch.load(p_x3), strict=True) if Path(p_x3).is_file() else None
+            layer[-1].load_state_dict(torch.load(p_vgg), strict=True) if Path(p_vgg).is_file() else None
+            return layer
+        elif mul == 2:
+            layer = nn.Sequential(
+                SRNet3(mul),
+                create_cnn_model(base_arch=self.base_arch, nc=self.n_classes)
+            )
+            layer[0].load_state_dict(torch.load(p_x2), strict=True) if Path(p_x2).is_file() else None
+            layer[-1].load_state_dict(torch.load(p_vgg), strict=True) if Path(p_vgg).is_file() else None
+            return layer
+        else:
+            layer = nn.Sequential(
+                PassThrough(),
+                create_cnn_model(base_arch=self.base_arch, nc=self.n_classes)
+            )
+            layer[-1].load_state_dict(torch.load(p_vgg), strict=True) if Path(p_vgg).is_file() else None
+            return layer
+
+    def layer_groups(self):
+        return [
+            self.stn,
+            self.pyramid_group
+        ]
+
+    def load_weights(self, **config):
+        """
+        Support to load weights from config.
+        Name of key in config should be keep as general case:
+            - base_weights_path for latest, cl layer
+            - weight_path_x{n} for pyramid_group, except x1
+        :param config:
+        :return:
+        """
+        if config.get('base_weights_path', None) is not None:
+            self.cl.load_state_dict(torch.load(config['base_weights_path']), strict=True)
+            print('load weights for classifier', config['base_weights_path'])
+
+        for idx in range(len(self.multiples)):
+            xn_name = 'weight_path_x{}'.format(self.multiples[idx])
+            if config.get(xn_name, None) is not None:
+                out = self.pyramid_group[idx].load_state_dict(torch.load(config[xn_name]), strict=True)
+                print('load weights for {}'.format(xn_name), out)
+
+    def forward(self, *x, **kwargs):
+        x = self.stn(x[0])
+
+        branches_out = []
+        for idx in range(len(self.pyramid_group)):
+            o1 = self.pyramid_group[idx](x)
+            x_out = o1
+            branches_out.append(x_out)
+        x_stack = torch.stack(branches_out, dim=-1)  # [bs, n_classes, n_branches]
+        # weights = self.branch_weighted(x_stack.view([-1, self.n_classes * self.n_branches]))
+
+        if not self.training and self.is_testing:
+            # not when valid, just when test
+            return weights_branches((x_stack, None))
+
+        return x_stack, None
+
+
 def weights_branches(pred, **kwargs):
     """
     Use together with `prlab.model.pyramid_sr.prob_weights_loss`
