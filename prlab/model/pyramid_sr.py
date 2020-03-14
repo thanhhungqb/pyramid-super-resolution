@@ -1,6 +1,7 @@
 """
 Implement multi level (pyramid) with super-resolution
 """
+import deprecation
 from fastai.vision import *
 
 from outside.stn import STN
@@ -10,6 +11,8 @@ from prlab.gutils import load_func_by_name
 from prlab.torch.functions import PassThrough
 
 
+@deprecation.deprecated(
+    details='replace by clean version at `prlab.model.pyramid_sr.PyramidSRNonShare`, keep this for reference only')
 class PyramidSR(nn.Module):
     def __init__(self, **config):
         super().__init__()
@@ -151,9 +154,9 @@ def weights_branches(pred, **kwargs):
         # if not tuple then return the final/weighted version => DO NOTHING
         return pred
 
-    out, weights = pred
+    out, _ = pred
 
-    n_branches = weights.size()[-1]
+    n_branches = out.size()[-1]
     sm = [torch.softmax(out[:, :, i], dim=1) for i in range(n_branches)]
     sm = torch.stack(sm, dim=-1)
     # c_out = torch.bmm(sm, weights.unsqueeze(-1)).squeeze(dim=-1)
@@ -174,8 +177,8 @@ def prob_weights_loss(pred, target, **kwargs):
     if not isinstance(pred, tuple):
         return f_loss(pred, target)
 
-    out, weights = pred
-    n_branches = weights.size()[-1]
+    out, _ = pred
+    n_branches = out.size()[-1]
     losses = [f_loss(out[:, :, i], target) for i in range(n_branches)]
 
     losses = torch.stack(losses, dim=-1)
