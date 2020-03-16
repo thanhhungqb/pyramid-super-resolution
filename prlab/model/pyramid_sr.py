@@ -358,6 +358,46 @@ class PyramidSRVGGShare(nn.Module):
         return x_stack, None
 
 
+class PyramidSRVGGShareDeeper(PyramidSRVGGShare):
+    """
+    Extend of `PyramidSRVGGShare` just make deeper (add some layer) when mul is 2 and 3.
+    Mostly keep sep_pos=3 instead 6
+    """
+
+    def __init__(self, **config):
+        super().__init__(**config)
+
+    def make_layer_pyramid(self, mul, input_spec):
+        """
+        :param mul:
+        :param input_spec: first layers, must adapt to input size
+        :return:
+        """
+        if mul in [2, 3]:
+            # make new one here, similar input_spec but triple size input, copy weights
+            # in this case, input_spec mostly has len(3) and out filter is 64 (both VGG16 and ResNet101)
+            layer = nn.Sequential(
+                SRNet3(mul),
+                make_basic_block(input_spec.state_dict(), strict=True, module_like=input_spec),
+                nn.Sequential(
+                    nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+                    nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+                    nn.ReLU(),
+                    nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+                )
+            )
+            path_xn = self.config.get('weight_path_x{}'.format(mul), None)
+            o = layer[0].load_state_dict(torch.load(path_xn), strict=True) \
+                if path_xn is not None and Path(path_xn).is_file() else None
+            if o:
+                print('load weights from ', path_xn)
+
+        else:
+            # just clone input_spec here
+            layer = make_basic_block(input_spec.state_dict(), strict=True, module_like=input_spec)
+        return layer
+
+
 def make_basic_block(state_dict=None, strict=True, module_like=None):
     """
     This block is widely used as the first block, in VGG16, ResNet101, e.g. (check)
@@ -371,12 +411,22 @@ def make_basic_block(state_dict=None, strict=True, module_like=None):
         nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
         nn.ReLU()
     )
-    if module_like and len(module_like) == 6:
+    if module_like and len(module_like) >= 6:
         # add more three submodule, the second layer
         block = nn.Sequential(
             *block,
             nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(),
+        )
+    if module_like and len(module_like) >= 10:
+        # add more three submodule, extends from 6 with 4 small part
+        # just work for VGG
+        block = nn.Sequential(
+            *block,
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+            nn.Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
             nn.ReLU(),
         )
     if state_dict is not None:
