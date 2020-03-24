@@ -314,10 +314,15 @@ class PyramidSRVGGShare(nn.Module):
         :param input_spec: first layers, must adapt to input size
         :return:
         """
+        srnet_c = SRNet3
+        srnet_c_str = self.config.get('srnet_fn', self.config.get('srnet_c', None))
+        if srnet_c_str is not None:
+            srnet_c, _ = load_func_by_name(srnet_c_str)
+
         if mul in [2, 3]:
             # make new one here, similar input_spec but triple size input, copy weights
             layer = nn.Sequential(
-                SRNet3(mul),
+                srnet_c(scale=mul),
                 make_basic_block(input_spec.state_dict(), strict=True, module_like=input_spec)
             )
             path_xn = self.config.get('weight_path_x{}'.format(mul), None)
