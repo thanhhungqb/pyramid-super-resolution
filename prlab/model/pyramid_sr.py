@@ -245,7 +245,7 @@ class PyramidSRNonShare(nn.Module):
         return x_stack, None
 
 
-class PyramidSRVGGShare(nn.Module):
+class PyramidSRShare(nn.Module):
     """
     Like `prlab.model.pyramid_sr.PyramidSRNonShare` but all branches share the basic layers of VGG, just different
     of first layer for different size of input and do not broken the weight.
@@ -361,6 +361,16 @@ class PyramidSRVGGShare(nn.Module):
             return weights_branches((x_stack, None))
 
         return x_stack, None
+
+
+class PyramidSRVGGShare(PyramidSRShare):
+    """
+    Wrap for PyramidSRShare with vgg architecture
+    """
+
+    def __init__(self, **config):
+        config['base_arch'] = 'vgg16_bn'
+        super().__init__(**config)
 
 
 class PyramidSRVGGShareDeeper(PyramidSRVGGShare):
