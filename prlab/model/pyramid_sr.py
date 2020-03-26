@@ -285,10 +285,16 @@ class PyramidSRShare(nn.Module):
         """
         base_weights_path = self.config.get('base_weights_path', None)
         base_model = create_cnn_model(base_arch=self.base_arch, nc=self.n_classes)
-        o = base_model.load_state_dict(torch.load(base_weights_path), strict=False) \
-            if base_weights_path is not None and Path(base_weights_path).is_file() else None
-        if o:
-            print('load weights from ', base_weights_path)
+        if base_weights_path is not None and Path(base_weights_path).is_file():
+            state_dict = torch.load(base_weights_path)
+            # check if n_classes is same, if not remove 2 latest (FC) weights
+            two_latest_keys = list(state_dict.keys())[-2:]
+            if state_dict[two_latest_keys[-1]].size()[0] != self.n_classes:
+                for o in two_latest_keys:
+                    del state_dict[o]
+
+            o = base_model.load_state_dict(state_dict=state_dict, strict=False)
+            print('load weights from ', base_weights_path, o)
 
         if self.config['base_arch'] in ['vgg16_bn']:
             sep_pos = self.config.get('sep_pos', 3)  # 3 for first Conv2D layer, 6 for top 2 Conv2D layers
