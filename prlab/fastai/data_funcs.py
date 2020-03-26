@@ -1,6 +1,7 @@
 # Implement many help functions for data loading in DataBunch of fastai
 
 import os
+import random
 from pathlib import Path
 
 import pandas as pd
@@ -31,9 +32,11 @@ class RafDBDataHelper(DefaultDataHelper):
     def __init__(self, **config):
         super().__init__(**config)
         set_if(config, 'csv_path', config['path'] / 'raf-db-meta.csv')
-        set_if(config, 'fold', 1)
 
         self.raf_meta = pd.read_csv(config['csv_path'], index_col=0)
+        all_fold = list(set(self.raf_meta['5_fold']))
+        v = all_fold[int(random.random() * len(all_fold))]
+        set_if(config, 'fold', v)
 
         self.f_map = fmap_name_aligned
         self.path = config['path'] / 'aligned'
