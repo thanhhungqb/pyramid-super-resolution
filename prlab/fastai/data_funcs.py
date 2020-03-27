@@ -160,6 +160,28 @@ def emotiw_get_target_func(fname):
     name = (fname.parts if isinstance(fname, Path) else fname.split(os.path.sep))[-3]
     return name.lower()
 
+
 # -------------------------------------------------------------------------
 # Functions for emotiw dataset
+# -------------------------------------------------------------------------
+
+
+# -------------------------------------------------------------------------
+# Functions for AffectNet dataset
+# -------------------------------------------------------------------------
+
+class AffectNetDataHelper(DefaultDataHelper):
+    """
+    Data Helper for rafDB
+    """
+    label_cls = CategoryList
+
+    def __init__(self, **config):
+        super().__init__(**config)
+
+    def y_func(self, file_path):
+        label = (file_path.parts[-2] if isinstance(file_path, Path) else file_path.split(os.path.sep)[-2])
+        return label
+# -------------------------------------------------------------------------
+# Functions for AffectNet dataset
 # -------------------------------------------------------------------------
