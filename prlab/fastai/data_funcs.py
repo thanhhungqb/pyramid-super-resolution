@@ -173,6 +173,8 @@ def emotiw_get_target_func(fname):
 class AffectNetDataHelper(DefaultDataHelper):
     """
     Data Helper for rafDB
+    class order: Neutral, Happy, Sad, Surprise, Fear, Disgust, Anger, Contempt (latest 3 removed)
+    Contempt should be use or not (to compare) then 7 or 8 classes
     """
     label_cls = CategoryList
 
