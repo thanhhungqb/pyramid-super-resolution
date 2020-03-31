@@ -1,6 +1,7 @@
 # Implement many help functions for data loading in DataBunch of fastai
 
 import os
+import random
 from pathlib import Path
 
 import pandas as pd
@@ -21,6 +22,9 @@ class DefaultDataHelper:
     def y_func(self, o):
         return 0
 
+    def filter_func(self, file_path):
+        return True
+
 
 class RafDBDataHelper(DefaultDataHelper):
     """
@@ -31,9 +35,11 @@ class RafDBDataHelper(DefaultDataHelper):
     def __init__(self, **config):
         super().__init__(**config)
         set_if(config, 'csv_path', config['path'] / 'raf-db-meta.csv')
-        set_if(config, 'fold', 1)
 
         self.raf_meta = pd.read_csv(config['csv_path'], index_col=0)
+        all_fold = list(set(self.raf_meta['5_fold']))
+        v = all_fold[int(random.random() * len(all_fold))]
+        set_if(config, 'fold', v)
 
         self.f_map = fmap_name_aligned
         self.path = config['path'] / 'aligned'
@@ -157,6 +163,39 @@ def emotiw_get_target_func(fname):
     name = (fname.parts if isinstance(fname, Path) else fname.split(os.path.sep))[-3]
     return name.lower()
 
+
 # -------------------------------------------------------------------------
 # Functions for emotiw dataset
+# -------------------------------------------------------------------------
+
+
+# -------------------------------------------------------------------------
+# Functions for AffectNet dataset
+# -------------------------------------------------------------------------
+
+class AffectNetDataHelper(DefaultDataHelper):
+    """
+    Data Helper for rafDB
+    class order: Neutral, Happy, Sad, Surprise, Fear, Disgust, Anger, Contempt (latest 3 removed)
+    Contempt should be use or not (to compare) then 7 or 8 classes
+    """
+    label_cls = CategoryList
+
+    def __init__(self, **config):
+        super().__init__(**config)
+        self.n_classes = config.get('n_classes', 8)
+        self.classes = ['Neutral', 'Happy', 'Sad', 'Surprise', 'Fear', 'Disgust', 'Anger', 'Contempt'][:self.n_classes]
+
+    def y_func(self, file_path):
+        label = (file_path.parts[-2] if isinstance(file_path, Path) else file_path.split(os.path.sep)[-2])
+        return label
+
+    def filter_func(self, file_path):
+        label = self.y_func(file_path=file_path)
+        if isinstance(label, str):
+            label = int(label)
+        return label < self.n_classes
+
+# -------------------------------------------------------------------------
+# Functions for AffectNet dataset
 # -------------------------------------------------------------------------

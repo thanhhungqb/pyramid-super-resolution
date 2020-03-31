@@ -245,7 +245,7 @@ class PyramidSRNonShare(nn.Module):
         return x_stack, None
 
 
-class PyramidSRVGGShare(nn.Module):
+class PyramidSRShare(nn.Module):
     """
     Like `prlab.model.pyramid_sr.PyramidSRNonShare` but all branches share the basic layers of VGG, just different
     of first layer for different size of input and do not broken the weight.
@@ -285,10 +285,16 @@ class PyramidSRVGGShare(nn.Module):
         """
         base_weights_path = self.config.get('base_weights_path', None)
         base_model = create_cnn_model(base_arch=self.base_arch, nc=self.n_classes)
-        o = base_model.load_state_dict(torch.load(base_weights_path), strict=True) \
-            if base_weights_path is not None and Path(base_weights_path).is_file() else None
-        if o:
-            print('load weights from ', base_weights_path)
+        if base_weights_path is not None and Path(base_weights_path).is_file():
+            state_dict = torch.load(base_weights_path)
+            # check if n_classes is same, if not remove 2 latest (FC) weights
+            two_latest_keys = list(state_dict.keys())[-2:]
+            if state_dict[two_latest_keys[-1]].size()[0] != self.n_classes:
+                for o in two_latest_keys:
+                    del state_dict[o]
+
+            o = base_model.load_state_dict(state_dict=state_dict, strict=False)
+            print('load weights from ', base_weights_path, o)
 
         if self.config['base_arch'] in ['vgg16_bn']:
             sep_pos = self.config.get('sep_pos', 3)  # 3 for first Conv2D layer, 6 for top 2 Conv2D layers
@@ -314,10 +320,15 @@ class PyramidSRVGGShare(nn.Module):
         :param input_spec: first layers, must adapt to input size
         :return:
         """
+        srnet_c = SRNet3
+        srnet_c_str = self.config.get('srnet_fn', self.config.get('srnet_c', None))
+        if srnet_c_str is not None:
+            srnet_c, _ = load_func_by_name(srnet_c_str)
+
         if mul in [2, 3]:
             # make new one here, similar input_spec but triple size input, copy weights
             layer = nn.Sequential(
-                SRNet3(mul),
+                srnet_c(scale=mul),
                 make_basic_block(input_spec.state_dict(), strict=True, module_like=input_spec)
             )
             path_xn = self.config.get('weight_path_x{}'.format(mul), None)
@@ -333,7 +344,7 @@ class PyramidSRVGGShare(nn.Module):
 
     def layer_groups(self):
         return [
-            self.stn,
+            nn.Sequential(self.stn),
             self.classifier,
             self.pyramid_group
         ]
@@ -347,6 +358,97 @@ class PyramidSRVGGShare(nn.Module):
         branches_out = []
         for idx in range(len(self.pyramid_group)):
             o1 = self.pyramid_group[idx](x)
+            x_out = self.classifier(o1)
+            branches_out.append(x_out)
+        x_stack = torch.stack(branches_out, dim=-1)  # [bs, n_classes, n_branches]
+
+        if not self.training and self.is_testing:
+            # not when valid, just when test
+            return weights_branches((x_stack, None))
+
+        return x_stack, None
+
+
+class PyramidSRVGGShare(PyramidSRShare):
+    """
+    Wrap for PyramidSRShare with vgg architecture
+    """
+
+    def __init__(self, **config):
+        config['base_arch'] = 'vgg16_bn'
+        super().__init__(**config)
+
+
+class PyramidShare(PyramidSRShare):
+    """
+    Provided the big size image (after resize) then use multi size to train.
+    [low-size, SR-size+, big-size]
+    many branches share some latest layers (sep_pos).
+    Now support to VGG but can be extended in future.
+    multiples should be [1, 2, 1], [1, 2, 4, 1]
+    [1, 2, 4, 1] mean [low-size, SR 2 low-size, SR 4 low-size, big-size] and low-size = big-size/2**2
+    sep_pos should be 10, 6 or 3
+    """
+
+    def __init__(self, **config):
+        self.group_1, self.group_2 = [], []
+        super().__init__(**config)
+
+    def make_layer_pyramid(self, mul, input_spec):
+        """
+        :param mul:
+        :param input_spec: first layers, must adapt to input size
+        :return:
+        """
+        srnet_c = SRNet3
+        srnet_c_str = self.config.get('srnet_fn', self.config.get('srnet_c', None))
+        if srnet_c_str is not None:
+            srnet_c, _ = load_func_by_name(srnet_c_str)
+
+        if mul in [2, 3, 4]:
+            # make new one here, similar input_spec but triple size input, copy weights
+            layer = nn.Sequential(
+                srnet_c(scale=mul),
+                make_basic_block(input_spec.state_dict(), strict=True, module_like=input_spec)
+            )
+            self.group_1.append(layer[0]), self.group_2.append(layer[1:])
+            path_xn = self.config.get('weight_path_x{}'.format(mul), None)
+            o = layer[0].load_state_dict(torch.load(path_xn), strict=False) \
+                if path_xn is not None and Path(path_xn).is_file() else None
+            if o:
+                print('load weights from ', path_xn, 'for x', mul)
+
+        else:
+            # just clone input_spec here
+            layer = make_basic_block(input_spec.state_dict(), strict=True, module_like=input_spec)
+            self.group_2.append(layer)
+        return layer
+
+    def layer_groups(self):
+        return [
+            nn.Sequential(self.stn, *self.group_1),
+            nn.Sequential(self.classifier),
+            nn.Sequential(*self.group_2),
+            # self.pyramid_group
+        ]
+
+    def forward(self, *x, **kwargs):
+
+        b, c, h, w = x[0].size()
+        m_size = len(self.multiples)
+        hs = (2 ** (m_size - 2))  # now /4, /2, ..., if /1.4 then need change it
+        nh, nw = h // hs, w // hs
+        x = self.stn(x[0])
+
+        # x_small_size = resize_tensor(x, nh, nw)
+        with torch.no_grad():
+            x_small_size = (F.adaptive_avg_pool2d(x, (nh, nw))).data
+
+        input_branches = [x_small_size] + [x_small_size] * (m_size - 2) + [x]
+
+        branches_out = []
+        for idx in range(len(self.pyramid_group)):
+            o1 = self.pyramid_group[idx](input_branches[idx])
             x_out = self.classifier(o1)
             branches_out.append(x_out)
         x_stack = torch.stack(branches_out, dim=-1)  # [bs, n_classes, n_branches]
@@ -488,6 +590,43 @@ def prob_weights_acc(pred, target, **kwargs):
     :return:
     """
     f_acc, _ = load_func_by_name('prlab.fastai.utils.prob_acc')
+    c_out = weights_branches(pred=pred)
+
+    return f_acc(c_out, target)  # f_acc(pred[0][:, :, 0], target)
+
+
+def norm_weights_loss(pred, target, **kwargs):
+    """
+    `CrossEntropyLoss` but for multi branches (out, weight) :([bs, C, branches], [bs, branches])
+    :param pred:
+    :param target:
+    :param kwargs:
+    :return:
+    """
+    # f_loss, _ = load_func_by_name('prlab.fastai.utils.prob_loss_raw')
+    f_loss = nn.CrossEntropyLoss()
+    if not isinstance(pred, tuple):
+        return f_loss(pred, target)
+
+    out, _ = pred
+    n_branches = out.size()[-1]
+    losses = [f_loss(out[:, :, i], target) for i in range(n_branches)]
+
+    losses = torch.stack(losses, dim=-1)
+    # loss = (losses * weights).sum(dim=-1)
+    loss = torch.mean(losses, dim=-1)
+    return torch.mean(loss)
+
+
+def norm_weights_acc(pred, target, **kwargs):
+    """
+    Use together with `prlab.model.pyramid_sr.prob_weights_loss`
+    :param pred: out, weights: [bs, n_classes, n_branches] [bs, n_branches]
+    :param target: int for one-hot and list of float for prob
+    :param kwargs:
+    :return:
+    """
+    f_acc, _ = load_func_by_name('fastai.metrics.accuracy')
     c_out = weights_branches(pred=pred)
 
     return f_acc(c_out, target)  # f_acc(pred[0][:, :, 0], target)
