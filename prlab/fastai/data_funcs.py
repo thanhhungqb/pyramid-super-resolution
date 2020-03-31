@@ -22,6 +22,9 @@ class DefaultDataHelper:
     def y_func(self, o):
         return 0
 
+    def filter_func(self, file_path):
+        return True
+
 
 class RafDBDataHelper(DefaultDataHelper):
     """
@@ -180,10 +183,19 @@ class AffectNetDataHelper(DefaultDataHelper):
 
     def __init__(self, **config):
         super().__init__(**config)
+        self.n_classes = config.get('n_classes', 8)
+        self.classes = ['Neutral', 'Happy', 'Sad', 'Surprise', 'Fear', 'Disgust', 'Anger', 'Contempt'][:self.n_classes]
 
     def y_func(self, file_path):
         label = (file_path.parts[-2] if isinstance(file_path, Path) else file_path.split(os.path.sep)[-2])
         return label
+
+    def filter_func(self, file_path):
+        label = self.y_func(file_path=file_path)
+        if isinstance(label, str):
+            label = int(label)
+        return label < self.n_classes
+
 # -------------------------------------------------------------------------
 # Functions for AffectNet dataset
 # -------------------------------------------------------------------------
