@@ -14,7 +14,7 @@ def pre_processing(**config):
     :param config:
     :return:
     """
-    config['label_names'] = np.array(ferlabels)
+    config['label_names'] = np.array(ferlabels[:config['n_classes']])
     return config
 
 
