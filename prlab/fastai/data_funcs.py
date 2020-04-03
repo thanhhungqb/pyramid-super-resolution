@@ -8,7 +8,7 @@ import pandas as pd
 # --------------------------------------------------------------------------
 # For RAF-DB data
 # --------------------------------------------------------------------------
-from fastai.data_block import CategoryList
+from fastai.data_block import CategoryList, FloatList
 
 from prlab.gutils import set_if
 
@@ -175,7 +175,7 @@ def emotiw_get_target_func(fname):
 
 class AffectNetDataHelper(DefaultDataHelper):
     """
-    Data Helper for rafDB
+    Data Helper for AffectNet, categorical output 7/8 emotion classes
     class order: Neutral, Happy, Sad, Surprise, Fear, Disgust, Anger, Contempt (latest 3 removed)
     Contempt should be use or not (to compare) then 7 or 8 classes
     """
@@ -195,6 +195,79 @@ class AffectNetDataHelper(DefaultDataHelper):
         if isinstance(label, str):
             label = int(label)
         return label < self.n_classes
+
+
+class AffectNetDataHelperReg(DefaultDataHelper):
+    """
+    Data Helper for AffectNet, arousal and/or valency.
+    When run with it, configure should set n_classes=1/2 for regression
+    """
+    label_cls = FloatList
+
+    # mode for label
+    _BOTH_MODE = 0
+    _ONLY_VALENCY = 1
+    _ONLY_AROUSAL = 2
+
+    def __init__(self, **config):
+        """
+        meta_csv is csv or list of csv files, must same columns order and length (mostly training.csv and validation.csv)
+        :param config:
+        """
+        super().__init__(**config)
+        self.label_mode = config.get('label_mode', self._BOTH_MODE)
+
+        self.name_norm_fn = lambda x: '_'.join(x.split('_')[1:])
+        self.name_norm_x_fn = lambda x: x.replace('/', '_')
+
+        self.df = self.read_csvs(**config)
+
+    def y_func(self, file_path):
+        file_path = file_path if isinstance(file_path, Path) else Path(file_path)
+        name_norm = self.name_norm_fn(file_path.name)
+        valence, arousal = self.df.loc[name_norm, ['valence', 'arousal']]
+
+        if self.label_mode == self._BOTH_MODE:
+            return [valence, arousal]
+        elif self.label_mode == self._ONLY_VALENCY:
+            return valence
+        elif self.label_mode == self._ONLY_AROUSAL:
+            return arousal
+
+        return 0  # error
+
+    def filter_func(self, file_path):
+        """
+        Remove -2 values, why, some row has -2 in both valency and arousal
+        :param file_path:
+        :return:
+        """
+        try:
+            x = self.y_func(file_path)
+            x = x[0] if isinstance(x, list) else x
+            return -1. <= x <= 1.
+        except:
+            # files where outside of training and validation folder should not found in df
+            return False
+
+    def read_csvs(self, **config):
+        idx_name = config.get('new_index_name', 'name')
+        csv_names = config['meta_csv']
+        csv_names = csv_names if isinstance(csv_names, list) else [csv_names]
+
+        # merge 2 df
+        dfs = [pd.read_csv(f_name) for f_name in csv_names]
+        df_merge = pd.concat(dfs, axis=0, ignore_index=True)
+
+        # make index after change subDirectory_filePath to name_norm
+        idx_col = [self.name_norm_x_fn(o) for o in df_merge['subDirectory_filePath']]
+        idx_col = pd.DataFrame(idx_col, columns=[idx_name])
+        df_merge.set_index('subDirectory_filePath')
+
+        df = pd.concat([df_merge, idx_col], axis=1)
+        df.set_index(idx_name, drop=True, inplace=True)
+
+        return df
 
 # -------------------------------------------------------------------------
 # Functions for AffectNet dataset
