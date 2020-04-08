@@ -10,7 +10,7 @@ import pandas as pd
 # --------------------------------------------------------------------------
 from fastai.data_block import CategoryList, FloatList
 
-from prlab.gutils import set_if
+from prlab.gutils import set_if, balanced_sampler
 
 
 class DefaultDataHelper:
@@ -172,6 +172,11 @@ def emotiw_get_target_func(fname):
 # -------------------------------------------------------------------------
 # Functions for AffectNet dataset
 # -------------------------------------------------------------------------
+def affect_net_name_norm_fn(x): return '_'.join(x.split('_')[1:])
+
+
+def affect_net_name_norm_x_fn(x): return x.replace('/', '_')
+
 
 class AffectNetDataHelper(DefaultDataHelper):
     """
@@ -195,6 +200,49 @@ class AffectNetDataHelper(DefaultDataHelper):
         if isinstance(label, str):
             label = int(label)
         return label < self.n_classes
+
+
+class AffectNetBalanceValDataHelper(AffectNetDataHelper):
+    """
+    Extend `AffectNetDataHelper` with a valid function to split.
+    Valid is random select at the beginning and keep
+    """
+    _map_name_fn = affect_net_name_norm_x_fn
+
+    def __init__(self, **config):
+        super().__init__(**config)
+
+        self.valid_names = set([])
+        self._build_valid_name(**config)
+
+    def y_func(self, file_path):
+        # override super class function, because it should be call from df, that not actually load from folder name
+        # then can extract from filename itself
+        # format of affectnet: label_name
+        file_path = file_path if isinstance(file_path, Path) else Path(file_path)
+        name = file_path.name
+        label = name.split('_')[0]
+        return label
+
+    def valid_func(self, fname):
+        fname = fname if isinstance(fname, Path) else Path(fname)
+        name = fname.name
+        return name in self.valid_names
+
+    def _build_valid_name(self, **config):
+        csv_names = config['meta_csv']
+        csv_names = csv_names if isinstance(csv_names, list) else [csv_names]
+
+        # merge 2 df
+        dfs = [pd.read_csv(f_name) for f_name in csv_names]
+        df_merge = pd.concat(dfs, axis=0, ignore_index=True)
+
+        map_names = [AffectNetBalanceValDataHelper._map_name_fn(o) for o in df_merge['subDirectory_filePath']]
+        labels = [self.y_func(o) for o in map_names]
+        selected_pos = balanced_sampler(labels=labels, n_each=config.get('n_validation_each_class', 1000),
+                                        replacement=False)
+        self.valid_names = [map_names[p] for p in selected_pos]
+        self.valid_names = set(self.valid_names)  # set for quick check "IN" operator
 
 
 class AffectNetDataHelperReg(DefaultDataHelper):
