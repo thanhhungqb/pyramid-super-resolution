@@ -237,7 +237,8 @@ class AffectNetBalanceValDataHelper(AffectNetDataHelper):
         dfs = [pd.read_csv(f_name) for f_name in csv_names]
         df_merge = pd.concat(dfs, axis=0, ignore_index=True)
 
-        map_names = [AffectNetBalanceValDataHelper._map_name_fn(o) for o in df_merge['subDirectory_filePath']]
+        map_names = ['{}_{}'.format(lbl, AffectNetBalanceValDataHelper._map_name_fn(o)) for lbl, o in
+                     zip(df_merge['expression'], df_merge['subDirectory_filePath'])]
         labels = [self.y_func(o) for o in map_names]
         selected_pos = balanced_sampler(labels=labels, n_each=config.get('n_validation_each_class', 1000),
                                         replacement=False)
