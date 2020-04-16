@@ -6,9 +6,16 @@ from fastai.vision import *
 
 from outside.stn import STN
 from outside.super_resolution.srnet import SRNet3
-from prlab.fastai.utils import base_arch_str_to_obj
+from prlab.fastai.utils import base_arch_str_to_obj, weights_branches
 from prlab.gutils import load_func_by_name
 from prlab.torch.functions import PassThrough
+# make alias for old function that move to
+from prlab.torch.functions import norm_weights_acc as norm_weights_acc
+from prlab.torch.functions import norm_weights_loss as norm_weights_loss
+from prlab.torch.functions import prob_weights_acc as prob_weights_acc
+from prlab.torch.functions import prob_weights_loss as prob_weights_loss
+
+norm_weights_acc, norm_weights_loss, prob_weights_acc, prob_weights_loss
 
 
 @deprecation.deprecated(
@@ -535,98 +542,3 @@ def make_basic_block(state_dict=None, strict=True, module_like=None):
         block.load_state_dict(state_dict=state_dict, strict=strict)
 
     return block
-
-
-def weights_branches(pred, **kwargs):
-    """
-    Use together with `prlab.model.pyramid_sr.prob_weights_loss`
-    :param pred: out, weights: [bs, n_classes, n_branches] [bs, n_branches]
-    :param kwargs:
-    :return:
-    """
-    if not isinstance(pred, tuple):
-        # if not tuple then return the final/weighted version => DO NOTHING
-        return pred
-
-    out, _ = pred
-
-    n_branches = out.size()[-1]
-    sm = [torch.softmax(out[:, :, i], dim=1) for i in range(n_branches)]
-    sm = torch.stack(sm, dim=-1)
-    # c_out = torch.bmm(sm, weights.unsqueeze(-1)).squeeze(dim=-1)
-    c_out = torch.mean(sm, dim=-1)
-
-    return c_out
-
-
-def prob_weights_loss(pred, target, **kwargs):
-    """
-    `CrossEntropyLoss` but for multi branches (out, weight) :([bs, C, branches], [bs, branches])
-    :param pred:
-    :param target:
-    :param kwargs:
-    :return:
-    """
-    f_loss, _ = load_func_by_name('prlab.fastai.utils.prob_loss_raw')
-    if not isinstance(pred, tuple):
-        return f_loss(pred, target)
-
-    out, _ = pred
-    n_branches = out.size()[-1]
-    losses = [f_loss(out[:, :, i], target) for i in range(n_branches)]
-
-    losses = torch.stack(losses, dim=-1)
-    # loss = (losses * weights).sum(dim=-1)
-    loss = torch.mean(losses, dim=-1)
-    return torch.mean(loss)
-
-
-def prob_weights_acc(pred, target, **kwargs):
-    """
-    Use together with `prlab.model.pyramid_sr.prob_weights_loss`
-    :param pred: out, weights: [bs, n_classes, n_branches] [bs, n_branches]
-    :param target: int for one-hot and list of float for prob
-    :param kwargs:
-    :return:
-    """
-    f_acc, _ = load_func_by_name('prlab.fastai.utils.prob_acc')
-    c_out = weights_branches(pred=pred)
-
-    return f_acc(c_out, target)  # f_acc(pred[0][:, :, 0], target)
-
-
-def norm_weights_loss(pred, target, **kwargs):
-    """
-    `CrossEntropyLoss` but for multi branches (out, weight) :([bs, C, branches], [bs, branches])
-    :param pred:
-    :param target:
-    :param kwargs:
-    :return:
-    """
-    # f_loss, _ = load_func_by_name('prlab.fastai.utils.prob_loss_raw')
-    f_loss = nn.CrossEntropyLoss()
-    if not isinstance(pred, tuple):
-        return f_loss(pred, target)
-
-    out, _ = pred
-    n_branches = out.size()[-1]
-    losses = [f_loss(out[:, :, i], target) for i in range(n_branches)]
-
-    losses = torch.stack(losses, dim=-1)
-    # loss = (losses * weights).sum(dim=-1)
-    loss = torch.mean(losses, dim=-1)
-    return torch.mean(loss)
-
-
-def norm_weights_acc(pred, target, **kwargs):
-    """
-    Use together with `prlab.model.pyramid_sr.prob_weights_loss`
-    :param pred: out, weights: [bs, n_classes, n_branches] [bs, n_branches]
-    :param target: int for one-hot and list of float for prob
-    :param kwargs:
-    :return:
-    """
-    f_acc, _ = load_func_by_name('fastai.metrics.accuracy')
-    c_out = weights_branches(pred=pred)
-
-    return f_acc(c_out, target)  # f_acc(pred[0][:, :, 0], target)
