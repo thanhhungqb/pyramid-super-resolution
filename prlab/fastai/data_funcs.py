@@ -10,6 +10,7 @@ import pandas as pd
 # --------------------------------------------------------------------------
 from fastai.data_block import CategoryList, FloatList
 
+from prlab.emotion.emo_const import rafdb_labels_names, rafdb_emo_dis
 from prlab.gutils import set_if, balanced_sampler
 
 
@@ -73,6 +74,19 @@ class RafDBDataHelper(DefaultDataHelper):
         :return: true if in valid/false if not (then in train)
         """
         return raf_db_valid_split_func(self.raf_meta, o, fold=self.fold, map_fname_funcs=self.f_map)
+
+
+class RafDBDataHelperDis(RafDBDataHelper):
+    label_cls = FloatList
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.rafdb_name_2_id = {name: idx for idx, name in enumerate(rafdb_labels_names)}
+
+    def y_func(self, o):
+        lbl_name = super().y_func(o)
+        lbl_id = self.rafdb_name_2_id[lbl_name]
+        return rafdb_emo_dis[lbl_id]
 
 
 fmap_name = lambda o: o  # for normal train folder

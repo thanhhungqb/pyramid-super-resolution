@@ -538,6 +538,76 @@ def make_basic_block(state_dict=None, strict=True, module_like=None):
             nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
             nn.ReLU(),
         )
+    if module_like and len(module_like) >= 14:
+        # just work for VGG
+        block = nn.Sequential(
+            *block,
+            nn.Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+        )
+    if module_like and len(module_like) >= 17:
+        # just work for VGG
+        block = nn.Sequential(
+            *block,
+            nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU()
+        )
+    if module_like and len(module_like) >= 20:
+        # just work for VGG
+        block = nn.Sequential(
+            *block,
+            nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU()
+        )
+
+    if module_like and len(module_like) >= 24:
+        # just work for VGG
+        block = nn.Sequential(
+            *block,
+            nn.Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+        )
+
+    if module_like and len(module_like) >= 27:
+        # just work for VGG
+        block = nn.Sequential(
+            *block,
+            nn.Conv2d(256, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(),
+        )
+    if module_like and len(module_like) >= 30:
+        # just work for VGG
+        block = nn.Sequential(
+            *block,
+            nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(),
+        )
+
+    if module_like and len(module_like) >= 34:
+        # just work for VGG
+        block = nn.Sequential(
+            *block,
+            nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+        )
+    if module_like and len(module_like) >= 37:
+        # just work for VGG
+        block = nn.Sequential(
+            *block,
+            nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(),
+        )
     if state_dict is not None:
         block.load_state_dict(state_dict=state_dict, strict=strict)
 
