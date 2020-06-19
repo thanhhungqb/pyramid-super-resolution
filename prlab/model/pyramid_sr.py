@@ -401,6 +401,8 @@ class PyramidShare(PyramidSRShare):
         self.group_1, self.group_2 = [], []
         super().__init__(**config)
 
+        self.is_stn = config.get('is_stn', True)
+
     def make_layer_pyramid(self, mul, input_spec):
         """
         :param mul:
@@ -445,7 +447,7 @@ class PyramidShare(PyramidSRShare):
         m_size = len(self.multiples)
         hs = (2 ** (m_size - 2))  # now /4, /2, ..., if /1.4 then need change it
         nh, nw = h // hs, w // hs
-        x = self.stn(x[0])
+        x = self.stn(x[0]) if self.is_stn else x[0]
 
         # x_small_size = resize_tensor(x, nh, nw)
         with torch.no_grad():
