@@ -4,13 +4,14 @@ import os
 import random
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 # --------------------------------------------------------------------------
 # For RAF-DB data
 # --------------------------------------------------------------------------
 from fastai.data_block import CategoryList, FloatList
 
-from prlab.emotion.emo_const import rafdb_labels_names, rafdb_emo_dis
+from prlab.emotion.emo_const import rafdb_labels_names, rafdb_emo_dis, affectnet_emo_dis
 from prlab.gutils import set_if, balanced_sampler
 
 
@@ -213,6 +214,25 @@ class AffectNetDataHelper(DefaultDataHelper):
         label = self.y_func(file_path=file_path)
         if isinstance(label, str):
             label = int(label)
+        return label < self.n_classes
+
+
+class AffectNetDataHelperDis(AffectNetDataHelper):
+    label_cls = FloatList
+
+    def __init__(self, **config):
+        super().__init__(**config)
+
+    def y_func(self, file_path):
+        lbl = super().y_func(file_path=file_path)
+        int_lbl = int(lbl)
+        int_lbl = int_lbl if int_lbl < self.n_classes else 0
+        # convert to dis
+        return affectnet_emo_dis[int_lbl][:self.n_classes]
+
+    def filter_func(self, file_path):
+        label = self.y_func(file_path=file_path)
+        label = np.argmax(label)
         return label < self.n_classes
 
 
