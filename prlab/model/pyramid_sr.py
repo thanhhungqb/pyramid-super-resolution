@@ -401,6 +401,12 @@ class PyramidShare(PyramidSRShare):
         self.group_1, self.group_2 = [], []
         super().__init__(**config)
 
+        # the size that the network should need to adapt, typical input size
+        # if input large that typical => down scale
+        # if input less that typical (1.5 times) => use lower branch
+        self.adaptive_input_size = config.get('adaptive_input_size', None)
+        self.is_stn = config.get('is_stn', True)
+
     def make_layer_pyramid(self, mul, input_spec):
         """
         :param mul:
@@ -445,11 +451,21 @@ class PyramidShare(PyramidSRShare):
         m_size = len(self.multiples)
         hs = (2 ** (m_size - 2))  # now /4, /2, ..., if /1.4 then need change it
         nh, nw = h // hs, w // hs
-        x = self.stn(x[0])
+        x = self.stn(x[0]) if self.is_stn else x[0]
 
         # x_small_size = resize_tensor(x, nh, nw)
+        exchange_flag = False
+        if self.adaptive_input_size is not None and h < self.adaptive_input_size / 1.5:
+            exchange_flag = True
+            # input_branches base on the adaptive of input size, now hard code to [1, 2, 1]
+            # need careful control more case later
+
         with torch.no_grad():
-            x_small_size = (F.adaptive_avg_pool2d(x, (nh, nw))).data
+            x_small_size = (F.adaptive_avg_pool2d(x, (nh, nw))).data \
+                if not exchange_flag else (F.adaptive_avg_pool2d(x, (h * 2, w * 2))).data
+        if exchange_flag:
+            # in this case, x_small_size is actually larger than x, then swap is need
+            x_small_size, x = x, x_small_size
 
         input_branches = [x_small_size] + [x_small_size] * (m_size - 2) + [x]
 
