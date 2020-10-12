@@ -7,7 +7,7 @@ from fastai.vision import *
 from outside.stn import STN
 from outside.super_resolution.srnet import SRNet3
 from prlab.fastai.utils import base_arch_str_to_obj, weights_branches
-from prlab.gutils import load_func_by_name
+from prlab.common.utils import load_func_by_name
 from prlab.torch.functions import PassThrough
 # make alias for old function that move to
 from prlab.torch.functions import norm_weights_acc as norm_weights_acc

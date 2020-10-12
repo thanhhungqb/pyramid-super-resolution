@@ -12,7 +12,7 @@ import pandas as pd
 from fastai.data_block import CategoryList, FloatList
 
 from prlab.emotion.emo_const import rafdb_labels_names, rafdb_emo_dis, affectnet_emo_dis
-from prlab.gutils import set_if, balanced_sampler
+from prlab.common.utils import set_if, balanced_sampler
 
 
 class DefaultDataHelper:
