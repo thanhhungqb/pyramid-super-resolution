@@ -1,0 +1,81 @@
+{
+  "fold": 1,
+  "run": "psr",
+  "call": "prlab.common.dl.pipeline_control_multi",
+  "path": "data/raf-db",
+  "model_path": "models/raf-db",
+  "csv_path": "data/raf-db/raf-db-meta.csv",
+  "data_helper": "psr.data_funcs.RafDBDataHelperDis",
+  "process_pipeline_0": [
+    "prlab.fastai.pipeline.device_setup",
+    "prlab.fastai.utils.general_configure"
+  ],
+  "process_pipeline_1": [
+    "prlab.fastai.pipeline.exchange_fc"
+  ],
+  "process_pipeline_5": [
+    "prlab.fastai.pipeline.data_load_folder_df",
+    "prlab.fastai.pipeline.create_obj_model",
+    "prlab.fastai.pipeline.learn_general_setup",
+    "prlab.fastai.pipeline.resume_learner"
+  ],
+  "process_pipeline_10": [
+    "prlab.fastai.pipeline.training_adam_sgd"
+  ],
+  "process_pipeline_20": [
+    "prlab.fastai.pipeline.make_report_cls"
+  ],
+  "process_pipeline_50": [
+    "prlab.fastai.pipeline.fold_after"
+  ],
+  "img_size": 100,
+  "bs": 32,
+  "max_rotate": 15.0,
+  "max_zoom": 1.1,
+  "n_classes": 7,
+  "epochs": 30,
+  "epochs_2": 20,
+  "k_start": 1,
+  "k": 5,
+  "metrics": [
+    "prlab.torch.functions.prob_weights_acc"
+  ],
+  "loss_func": "prlab.fastai.utils.NormWeightsLoss",
+  "second_loss_fn": [
+    "object",
+    "prlab.fastai.utils.LabelSmoothingLossDis",
+    {
+      "reduction": "none",
+      "alpha": 0.8,
+      "note": "use with RAW because it inside of main loss"
+    }
+  ],
+  "multiples": [
+    1,
+    2,
+    1
+  ],
+  "lr": [
+    1e-05,
+    0.005,
+    0.001
+  ],
+  "base_arch": "vgg16_bn",
+  "model_class": "psr.pyramid_sr.PyramidShare",
+  "srnet_c": "outside.super_resolution.edsr.EDSR",
+  "note_here_sep_pos": "for base vgg16_bn, sep_pos should be 3, 6, 10, 14, 17, 20, 24, 27, 30, 34, 37",
+  "sep_pos": 24,
+  "note_here_1": "below 2 line, and process exchange_fc to exchange fc from ferplus label to affectnet",
+  "base_weights_path": "models/ferplus/vgg16_bn_quick_3size_e20/final.w",
+  "new_pos": [
+    4,
+    5,
+    6,
+    1,
+    0,
+    3,
+    2
+  ],
+  "weights_path_edsr_nu": "models/super_resolution/edsr_baseline_x2-1bc95232.pt",
+  "weight_path_x2": "models/super_resolution/edsr_baseline_x2-1bc95232.pt"
+}
