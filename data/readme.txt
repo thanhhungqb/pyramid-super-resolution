@@ -9,5 +9,5 @@ data
 ├── raf-db
 │   ├── aligned
 │   ├── raf-db-meta.csv
-│   ├── train
+│   └── train
 └── readme.txt
