@@ -1,0 +1,3 @@
+git+https://github.com/thanhhungqb/outside_collection.git@v1.0.0
+git+https://github.com/thanhhungqb/prlab_utils.git@v1.0.0
+
