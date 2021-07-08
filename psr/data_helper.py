@@ -10,7 +10,7 @@ import pandas as pd
 # lbl2id = {'ang': 0, 'hap': 1, 'neu': 2, 'sad': 3}
 from fastai.data_block import FloatList
 
-from prlab.fastai.data_funcs import DefaultDataHelper
+from psr.data_funcs import DefaultDataHelper
 from prlab.gutils import map_str_prob, get_file_rec
 
 
