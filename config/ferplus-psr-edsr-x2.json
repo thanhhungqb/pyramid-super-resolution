@@ -1,0 +1,65 @@
+{
+  "call": "prlab.fastai.pipeline.pipeline_control_multi",
+  "path": "/ws/data/ferplus-8",
+  "model_path": "/ws/models/ferplus",
+  "csv_path": "/ws/data/ferplus-8/ferplus-meta.csv",
+  "data_helper": "psr.data_helper.FerplusDataHelper",
+  "metrics": [
+    [
+      "object",
+      "prlab.torch.functions.WeightsAcc",
+      {
+        "base_acc": "prlab.fastai.utils.prob_acc"
+      }
+    ]
+  ],
+  "loss_func": "prlab.fastai.utils.NormWeightsLoss",
+  "second_loss_fn": [
+    "object",
+    "prlab.fastai.utils.ProbLoss",
+    {
+      "reduction": "none"
+    }
+  ],
+  "multiples": [
+    1,
+    2,
+    1
+  ],
+  "lr": [
+    1e-5,
+    5e-4,
+    1e-3
+  ],
+  "base_arch": "vgg16_bn",
+  "model_class": "psr.pyramid_sr.PyramidShare",
+  "srnet_c": "outside.super_resolution.edsr.EDSR",
+  "sep_pos": 24,
+  "note: base_weights_path": "change base_weights_path_NU to base_weights_path if used",
+  "base_weights_path_NU": "/ws/models/ferplus/vgg16_bn_quick_3size_e20/final.w",
+  "weight_path_x2": "/ws/models/super_resolution/edsr_baseline_x2-1bc95232.pt",
+  "process_pipeline_0": [
+    "prlab.fastai.pipeline.device_setup",
+    "prlab.fastai.utils.general_configure",
+    "psr.pipeline_func.pre_processing"
+  ],
+  "process_pipeline_1": [
+    "prlab.fastai.pipeline.data_load_folder",
+    "prlab.fastai.pipeline.create_obj_model",
+    "prlab.fastai.pipeline.learn_general_setup",
+    "prlab.fastai.pipeline.resume_learner"
+  ],
+  "process_pipeline_2": [
+    "prlab.fastai.pipeline.training_adam_sgd"
+  ],
+  "process_pipeline_20": [
+    "prlab.fastai.pipeline.make_report_cls"
+  ],
+  "max_rotate": 30.0,
+  "max_zoom": 1.2,
+  "img_size": 96,
+  "bs": 64,
+  "n_classes": 8,
+  "epochs": 30,
+  "run": "retest-2"
+}
