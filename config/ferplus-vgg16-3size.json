@@ -1,0 +1,77 @@
+{
+  "call": "prlab.fastai.pipeline.pipeline_control_multi",
+  "path": "/ws/data/ferplus-named",
+  "model_path": "/ws/models/ferplus",
+  "csv_path": "/ws/data/ferplus-8/ferplus-meta.csv",
+  "data_helper": "psr.data_helper.FerplusDataHelper",
+  "metrics": [
+    "prlab.fastai.utils.prob_acc"
+  ],
+  "max_rotate": 30.0,
+  "max_zoom": 1.2,
+  "loss_func": "prlab.fastai.utils.ProbLoss",
+  "img_size": 48,
+  "bs": 128,
+  "n_classes": 8,
+  "run": "vgg16_bn_quick_3size_e20-todel",
+  "model_func": "prlab.fastai.pipeline.basic_model_build",
+  "base_arch": "vgg16_bn",
+  "process_pipeline_NU": [
+    "prlab.fastai.pipeline.device_setup",
+    "prlab.fastai.pipeline.data_load_folder",
+    "prlab.emotion.ferplus.pipeline_func.pre_processing",
+    "prlab.fastai.pipeline.model_build",
+    "prlab.fastai.pipeline.learn_general_setup",
+    "prlab.fastai.pipeline.resume_learner",
+    "prlab.fastai.pipeline.vgg16_weights_load",
+    "prlab.fastai.pipeline.srnet3_weights_load",
+    "prlab.fastai.pipeline.training_adam_sgd",
+    "prlab.fastai.pipeline.make_report_cls"
+  ],
+  "img_size_rotate": [
+    48,
+    96,
+    144
+  ],
+  "process_pipeline_0": [
+    "prlab.fastai.pipeline.device_setup",
+    "prlab.fastai.utils.general_configure",
+    "prlab.emotion.ferplus.pipeline_func.pre_processing"
+  ],
+  "process_pipeline_1": [
+    "prlab.fastai.pipeline.data_load_folder",
+    "prlab.fastai.pipeline.model_build",
+    "prlab.fastai.pipeline.learn_general_setup",
+    "prlab.fastai.pipeline.resume_learner",
+    "prlab.fastai.pipeline.training_freeze"
+  ],
+  "process_pipeline_2": [
+    "prlab.emotion.ferplus.pipeline_func.rotate_img_size",
+    "prlab.fastai.pipeline.data_load_folder",
+    "prlab.fastai.pipeline.model_build",
+    "prlab.fastai.pipeline.learn_general_setup",
+    "prlab.fastai.pipeline.resume_learner",
+    "prlab.fastai.pipeline.training_simple"
+  ],
+  "process_pipeline_3": [
+    "prlab.emotion.ferplus.pipeline_func.rotate_img_size",
+    "prlab.fastai.pipeline.data_load_folder",
+    "prlab.fastai.pipeline.model_build",
+    "prlab.fastai.pipeline.learn_general_setup",
+    "prlab.fastai.pipeline.resume_learner",
+    "prlab.fastai.pipeline.training_simple"
+  ],
+  "process_pipeline_4": [
+    "prlab.emotion.ferplus.pipeline_func.rotate_img_size",
+    "prlab.fastai.pipeline.data_load_folder",
+    "prlab.fastai.pipeline.model_build",
+    "prlab.fastai.pipeline.learn_general_setup",
+    "prlab.fastai.pipeline.resume_learner",
+    "prlab.fastai.pipeline.training_simple"
+  ],
+  "process_pipeline_20": [
+    "prlab.fastai.pipeline.make_report_cls"
+  ],
+  "epochs": 20,
+  "epochs_2": 20
+}
